@@ -17,12 +17,12 @@ graph TD
     B --> C[API Gateway]
     C --> D[Presigned URL Lambda]
     D --> E[S3 Raw Bucket]
-    B -->|4. Upload Image| E
-    E -->|5. Put Event| C
-    C -->|6. Invoke| F[Thumbnail Lambda]
-    F -->|7. Download| E
-    F -->|8. Upload Thumbnail| G[S3 Thumbnails Bucket]
-    B -->|9. Display Thumbnail| G
+    B --> E
+    E --> C
+    C --> F[Thumbnail Lambda]
+    F --> E
+    F --> G[S3 Thumbnails Bucket]
+    B -->G
 ```
 
 ## Workflow

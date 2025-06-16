@@ -14,9 +14,9 @@ A serverless photo sharing application that:
 ```mermaid
 graph TD
     A[User] --> B[Frontend Web App]
-    B -->|1. Request Presigned URL| C[API Gateway]
-    C -->|2. Invoke| D[Presigned URL Lambda]
-    D -->|3. Generate| E[S3 Raw Bucket]
+    B --> C[API Gateway]
+    C --> D[Presigned URL Lambda]
+    D --> E[S3 Raw Bucket]
     B -->|4. Upload Image| E
     E -->|5. Put Event| C
     C -->|6. Invoke| F[Thumbnail Lambda]

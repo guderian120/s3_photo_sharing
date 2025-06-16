@@ -17,7 +17,6 @@ graph TD
     B --> C[API Gateway]
     C --> D[Presigned URL Lambda]
     D --> E[S3 Raw Bucket]
-    B --> E
     E --> C
     C --> F[Thumbnail Lambda]
     F --> E

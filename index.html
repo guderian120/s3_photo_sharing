@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Upload Portal</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --success: #4cc9f0;
+            --danger: #f72585;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background-color: #f5f7fa;
+            color: var(--dark);
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .upload-section {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .dropzone {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+        
+        .dropzone.active {
+            border-color: var(--primary);
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+        
+        .dropzone p {
+            margin-bottom: 1rem;
+            color: #666;
+        }
+        
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: var(--secondary);
+        }
+        
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .progress-container {
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        progress {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        progress::-webkit-progress-bar {
+            background-color: #e9ecef;
+            border-radius: 5px;
+        }
+        
+        progress::-webkit-progress-value {
+            background-color: var(--success);
+            border-radius: 5px;
+        }
+        
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .thumbnail-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .thumbnail-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .thumbnail-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        
+        .thumbnail-info {
+            padding: 1rem;
+        }
+        
+        .thumbnail-info h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .thumbnail-meta {
+            display: flex;
+            justify-content: space-between;
+            color: #666;
+            font-size: 0.875rem;
+        }
+        
+        .status {
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status.uploading {
+            background-color: #fff3bf;
+            color: #e67700;
+        }
+        
+        .status.success {
+            background-color: #ebfbee;
+            color: #2b8a3e;
+        }
+        
+        .status.error {
+            background-color: #ffebe6;
+            color: #c92a2a;
+        }
+        
+        @media (max-width: 768px) {
+            .gallery {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+            
+            .dropzone {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Image Upload Portal</h1>
+            <p>Upload your images and view generated thumbnails</p>
+        </header>
+        
+        <section class="upload-section">
+            <div id="dropzone" class="dropzone">
+                <p>Drag & drop your images here or click to browse</p>
+                <input type="file" id="file-input" accept="image/*" multiple style="display: none;">
+                <button class="btn" id="select-btn">Select Files</button>
+            </div>
+            
+            <button class="btn" id="upload-btn" disabled>Upload Files</button>
+            
+            <div class="progress-container" id="progress-container">
+                <p>Uploading: <span id="current-file">No file</span></p>
+                <progress id="upload-progress" value="0" max="100"></progress>
+                <p id="upload-status">Ready to upload</p>
+            </div>
+        </section>
+        
+        <section class="gallery" id="gallery">
+            <!-- Thumbnails will appear here -->
+        </section>
+    </div>
+
+    <script>
+        // Configuration - Update these with your actual endpoints
+        const config = {
+            apiGatewayUrl: 'https://dkz9b1xqf0.execute-api.eu-west-1.amazonaws.com/prod',
+            presignedUrlEndpoint: ' https://wu8st6xsu5.execute-api.eu-west-1.amazonaws.com/prod/generate-url'
+        };
+
+        // DOM Elements
+        const fileInput = document.getElementById('file-input');
+        const selectBtn = document.getElementById('select-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const dropzone = document.getElementById('dropzone');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('upload-progress');
+        const currentFileEl = document.getElementById('current-file');
+        const uploadStatusEl = document.getElementById('upload-status');
+        const gallery = document.getElementById('gallery');
+
+        // State
+        let filesToUpload = [];
+        let uploadInProgress = false;
+
+        // Event Listeners
+        selectBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+        uploadBtn.addEventListener('click', startUpload);
+        
+        // Drag and Drop Events
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('active');
+        });
+        
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('active');
+        });
+        
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('active');
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect({ target: fileInput });
+        });
+
+        // File Selection Handler
+        function handleFileSelect(event) {
+            filesToUpload = Array.from(event.target.files);
+            
+            if (filesToUpload.length > 0) {
+                uploadBtn.disabled = false;
+                showToast(`${filesToUpload.length} file(s) selected`, 'success');
+            } else {
+                uploadBtn.disabled = true;
+            }
+        }
+
+        // Upload Process
+        async function startUpload() {
+            if (uploadInProgress || filesToUpload.length === 0) return;
+            
+            uploadInProgress = true;
+            uploadBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            
+            try {
+                for (let i = 0; i < filesToUpload.length; i++) {
+                    const file = filesToUpload[i];
+                    currentFileEl.textContent = file.name;
+                    progressBar.value = 0;
+                    uploadStatusEl.textContent = 'Preparing upload...';
+                    
+                    // Create card in gallery
+                    const cardId = `card-${Date.now()}-${i}`;
+                    createThumbnailCard(cardId, file.name, 'uploading');
+                    
+                    try {
+                        // 1. Get pre-signed URL
+                        uploadStatusEl.textContent = 'Requesting upload URL...';
+                        const { presignedUrl, fileName } = await getPresignedUrl(file);
+                        
+                        // 2. Upload file to S3
+                        uploadStatusEl.textContent = 'Uploading to S3...';
+                        await uploadToS3(presignedUrl, file, cardId);
+                        
+                        // 3. Update UI with thumbnail
+                        uploadStatusEl.textContent = 'Generating thumbnail...';
+                        updateThumbnailCard(cardId, 'success');
+                        setTimeout(() => {
+                            displayThumbnail(cardId, fileName);
+                        }, 3000);
+                        
+                        showToast(`Uploaded ${file.name} successfully`, 'success');
+                    } catch (error) {
+                        console.error(`Error uploading ${file.name}:`, error);
+                        updateThumbnailCard(cardId, 'error');
+                        showToast(`Failed to upload ${file.name}`, 'error');
+                    }
+                    
+                    // Update progress
+                    progressBar.value = ((i + 1) / filesToUpload.length) * 100;
+                }
+                
+                uploadStatusEl.textContent = 'All uploads completed!';
+                showToast('All files uploaded successfully', 'success');
+            } catch (error) {
+                console.error('Upload process failed:', error);
+                showToast('Upload process failed', 'error');
+            } finally {
+                uploadInProgress = false;
+                filesToUpload = [];
+                fileInput.value = '';
+                uploadBtn.disabled = true;
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // API Functions
+        async function getPresignedUrl(file) {
+            const response = await axios.post(config.presignedUrlEndpoint, {
+                fileName: file.name,
+                fileType: file.type
+            });
+            
+            return response.data;
+        }
+
+        async function uploadToS3(url, file, cardId) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progressBar.value = percent;
+                        uploadStatusEl.textContent = `Uploading: ${percent}%`;
+                        
+                        // Update card progress
+                        const card = document.getElementById(cardId);
+                        if (card) {
+                            const progress = card.querySelector('.progress');
+                            if (progress) progress.value = percent;
+                        }
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(xhr.response);
+                    } else {
+                        reject(new Error('Upload failed'));
+                    }
+                });
+                
+                xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+                xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+                
+                xhr.open('PUT', url, true);
+                xhr.setRequestHeader('Content-Type', file.type);
+                xhr.send(file);
+            });
+        }
+
+        // UI Functions
+        function createThumbnailCard(id, filename, status) {
+            const card = document.createElement('div');
+            card.className = 'thumbnail-card';
+            card.id = id;
+            
+            card.innerHTML = `
+                <div class="thumbnail-img-container">
+                    <img src="placeholder.png" alt="Loading..." class="thumbnail-img">
+                </div>
+                <div class="thumbnail-info">
+                    <h3 title="${filename}">${filename}</h3>
+                    <div class="thumbnail-meta">
+                        <span class="status ${status}">${status}</span>
+                        <progress class="progress" value="0" max="100" style="display: none;"></progress>
+                    </div>
+                </div>
+            `;
+            
+            gallery.prepend(card);
+            return card;
+        }
+
+        function updateThumbnailCard(id, status) {
+            const card = document.getElementById(id);
+            if (!card) return;
+            
+            const statusEl = card.querySelector('.status');
+            if (statusEl) {
+                statusEl.className = `status ${status}`;
+                statusEl.textContent = status;
+            }
+        }
+
+        function displayThumbnail(cardId, filename) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            
+            const img = card.querySelector('.thumbnail-img');
+            if (img) {
+                img.src = `${config.apiGatewayUrl}/images/thumb-${filename}`;
+                img.onerror = () => {
+                    img.src = 'placeholder.png';
+                    updateThumbnailCard(cardId, 'error');
+                };
+            }
+        }
+
+        function showToast(message, type) {
+            // In a real app, you'd implement a proper toast notification system
+            console.log(`${type.toUpperCase()}: ${message}`);
+        }
+    </script>
+</body>
+</html>

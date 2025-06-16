@@ -88,17 +88,9 @@ sequenceDiagram
 ### Installation
 ```bash
 # Clone repository
-git clone https://github.com/your-repo/photo-sharing-app.git
-cd photo-sharing-app
+git clone https://github.com/guderian120/s3_photo_sharing
+cd s3_photo_sharing
 
-# Deploy backend
-cd backend
-npm install
-sls deploy
-
-# Deploy frontend
-cd ../frontend
-aws s3 sync . s3://your-bucket-name
 ```
 
 ## Error Handling

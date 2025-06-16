@@ -10,7 +10,7 @@ A serverless photo sharing application that:
 1. Generates secure upload URLs
 2. Automatically creates thumbnails
 3. Displays images in a responsive gallery
-
+```
 ## System Architecture
 
 ```mermaid

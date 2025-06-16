@@ -9,6 +9,8 @@ A serverless photo sharing application that:
 2. Automatically creates thumbnails
 3. Displays images in a responsive gallery
 
+
+![Demo Video](media/s3_photo_sharing(1).gif)
 ## System Architecture
 
 ```mermaid
@@ -119,4 +121,3 @@ flowchart TD
 
 ## License
 Apache 2.0 - See [LICENSE](LICENSE) for details
-```

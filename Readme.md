@@ -120,29 +120,3 @@ flowchart TD
 ## License
 Apache 2.0 - See [LICENSE](LICENSE) for details
 ```
-
-Key features of this README:
-
-1. **Visual Documentation** - All Mermaid diagrams render automatically in:
-   - GitHub/GitLab Markdown viewers
-   - VS Code with Mermaid plugin
-   - Documentation systems like GitBook
-
-2. **Structured Information** - Organized into logical sections:
-   - Architecture overview
-   - Detailed workflow
-   - Component specifications
-   - Deployment guide
-   - Error handling procedures
-
-3. **Badges** - Quick visual indicators for technologies used
-
-4. **Responsive Design** - Displays properly on all devices
-
-5. **Copy-Paste Ready** - Can be used directly in your repository
-
-To render these diagrams:
-1. On GitHub/GitLab - Works natively
-2. Locally - Use VS Code with Mermaid extension
-3. For PDFs - Use `mermaid-cli` to generate SVGs
-

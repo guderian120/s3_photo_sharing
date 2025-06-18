@@ -525,6 +525,62 @@
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
+                /* Image Modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .image-modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .image-modal-img {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+        }
+
+        .image-modal-title {
+            color: white;
+            margin-top: 1rem;
+            text-align: center;
+            max-width: 100%;
+            word-break: break-all;
+        }
+
+        .image-modal-loading {
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .image-modal-error {
+            color: var(--danger);
+            font-size: 1.2rem;
+}
         /* Responsive */
         @media (max-width: 768px) {
             .container {
@@ -719,7 +775,16 @@
             </div>
         </div>
     </div>
-
+<!-- Image Modal -->
+<div class="image-modal" id="image-modal">
+    <div class="image-modal-content">
+        <span class="image-modal-close" id="image-modal-close">&times;</span>
+        <div class="image-modal-loading" id="image-modal-loading">Loading image...</div>
+        <div class="image-modal-error" id="image-modal-error" style="display: none;"></div>
+        <img id="image-modal-img" class="image-modal-img" style="display: none;">
+        <div id="image-modal-title" class="image-modal-title"></div>
+    </div>
+</div>
     <script>
         // AWS Cognito Configuration
         const cognitoConfig = {
@@ -727,10 +792,82 @@
             ClientId: 'cn83s5vfslmjbibteoq4kfc2b',
             Region: 'eu-west-1'
         };
+// Image Modal Elements
+        const imageModal = document.getElementById('image-modal');
+        const imageModalImg = document.getElementById('image-modal-img');
+        const imageModalTitle = document.getElementById('image-modal-title');
+        const imageModalClose = document.getElementById('image-modal-close');
+        const imageModalLoading = document.getElementById('image-modal-loading');
+        const imageModalError = document.getElementById('image-modal-error');
 
+        // Show image modal
+        function showImageModal() {
+            imageModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Hide image modal
+        function hideImageModal() {
+            imageModal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            imageModalImg.style.display = 'none';
+            imageModalLoading.style.display = 'block';
+            imageModalError.style.display = 'none';
+        }
+
+        // Close modal when clicking X or outside image
+        imageModalClose.addEventListener('click', hideImageModal);
+        imageModal.addEventListener('click', (e) => {
+            if (e.target === imageModal) {
+                hideImageModal();
+            }
+        });
+
+        // Function to fetch and display original image
+        async function showOriginalImage(imageName) {
+            showImageModal();
+            imageModalTitle.textContent = imageName;
+            
+            try {
+                // Remove 'thumb-' prefix if present
+                const originalImageName = imageName.replace(/^thumb-/, '');
+                console.log('Original image name:', originalImageName);
+                // Construct the URL (API Gateway endpoint + image name)
+                const imageUrl = `${config.originalImageUrl}/${encodeURIComponent(originalImageName)}`;
+                
+                // Create a timestamp cache buster to avoid browser caching issues
+                const cacheBuster = `?t=${Date.now()}`;
+                
+                // Create image element
+                const img = new Image();
+                
+                img.onload = () => {
+                    imageModalImg.src = imageUrl + cacheBuster;
+                    imageModalImg.style.display = 'block';
+                    imageModalLoading.style.display = 'none';
+                };
+                
+                img.onerror = () => {
+                    imageModalLoading.style.display = 'none';
+                    imageModalError.style.display = 'block';
+                    imageModalError.textContent = 'Failed to load image';
+                    console.error('Image load error:', imageUrl);
+                };
+                
+                // Start loading
+                img.src = imageUrl + cacheBuster;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                imageModalLoading.style.display = 'none';
+                imageModalError.style.display = 'block';
+                imageModalError.textContent = 'Error: ' + (error.message || 'Failed to load image');
+            }
+        }
         // S3 App Configuration
         const config = {
             apiGatewayUrl: 'https://dkz9b1xqf0.execute-api.eu-west-1.amazonaws.com/prod/images',
+            originalImageUrl: 'https://wu8st6xsu5.execute-api.eu-west-1.amazonaws.com/prod/image',
             presignedUrlEndpoint: 'https://wu8st6xsu5.execute-api.eu-west-1.amazonaws.com/prod/generate-url',
             listThumbnailsEndpoint: 'https://dkz9b1xqf0.execute-api.eu-west-1.amazonaws.com/prod/thumbnails',
             userThumbnailsEndpoint: 'https://wu8st6xsu5.execute-api.eu-west-1.amazonaws.com/prod/user_thumbnails'
@@ -1093,6 +1230,7 @@
         // }
 
         // Render thumbnails in gallery
+        // Render thumbnails in gallery
         function renderThumbnails(thumbnails) {
             console.log('Rendering thumbnails:', thumbnails);
             gallery.innerHTML = '';
@@ -1119,6 +1257,12 @@
                         </div>
                     </div>
                 `;
+                
+                // Add click handler to the thumbnail image
+                const img = card.querySelector('.thumbnail-img-container');
+                img.addEventListener('click', () => {
+                    showOriginalImage(thumbnail.name);
+                });
                 
                 gallery.appendChild(card);
             });
@@ -1233,7 +1377,6 @@
                         uploadStatusEl.textContent = 'Processing image...';
                         updateThumbnailCard(cardId, 'success');
                         showToast(`Uploaded ${file.name} successfully`, 'success');
-                        window.location.reload(true);
                     } catch (error) {
                         console.error(`Error uploading ${file.name}:`, error);
                         updateThumbnailCard(cardId, 'error');

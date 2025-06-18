@@ -3,16 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Upload Portal</title>
+    <title>Photo Cloud</title>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1040.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@5.2.10/dist/amazon-cognito-identity.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #4361ee;
-            --secondary: #3f37c9;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --success: #4cc9f0;
-            --danger: #f72585;
+            --primary: #6366f1;
+            --primary-light: #a5b4fc;
+            --primary-dark: #4f46e5;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --light: #f8fafc;
+            --dark: #0f172a;
+            --gray: #94a3b8;
+            --gray-light: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
         }
         
         * {
@@ -22,211 +30,764 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            background-color: #f5f7fa;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.5;
+            background-color: #f1f5f9;
             color: var(--dark);
-            padding: 2rem;
+            min-height: 100vh;
         }
         
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 1.5rem;
         }
         
+        /* Modern Header */
         header {
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--gray-light);
         }
         
-        h1 {
-            color: var(--primary);
-            margin-bottom: 0.5rem;
+        .app-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
         
+        .app-title svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+        
+        /* User Info */
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .user-avatar {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .logout-btn {
+            background: none;
+            border: none;
+            color: var(--gray);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+        }
+        
+        .logout-btn:hover {
+            color: var(--danger);
+        }
+        
+        /* Compact Upload Section */
         .upload-section {
             background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
             margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-section:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .upload-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--dark);
         }
         
         .dropzone {
-            border: 2px dashed #ccc;
-            border-radius: 8px;
-            padding: 3rem;
+            border: 2px dashed var(--gray-light);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             margin-bottom: 1rem;
+            background-color: rgba(248, 250, 252, 0.5);
         }
         
         .dropzone.active {
             border-color: var(--primary);
-            background-color: rgba(67, 97, 238, 0.05);
+            background-color: rgba(99, 102, 241, 0.05);
         }
         
-        .dropzone p {
-            margin-bottom: 1rem;
-            color: #666;
+        .dropzone-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .dropzone-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            color: var(--primary);
+        }
+        
+        .dropzone-text {
+            color: var(--gray);
+            font-size: 0.9375rem;
+        }
+        
+        .file-input {
+            display: none;
         }
         
         .btn {
             background-color: var(--primary);
             color: white;
             border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 5px;
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
             cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         
         .btn:hover {
-            background-color: var(--secondary);
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
         }
         
         .btn:disabled {
-            background-color: #ccc;
+            background-color: var(--gray-light);
+            color: var(--gray);
             cursor: not-allowed;
+            transform: none;
         }
         
+        .btn-secondary {
+            background-color: white;
+            color: var(--primary);
+            border: 1px solid var(--gray-light);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--light);
+            border-color: var(--primary-light);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        /* Progress */
         .progress-container {
             margin-top: 1rem;
             display: none;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--gray-light);
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .current-file {
+            font-weight: 500;
+            color: var(--dark);
+        }
+        
+        .progress-percent {
+            color: var(--primary);
+            font-weight: 600;
         }
         
         progress {
             width: 100%;
-            height: 10px;
-            border-radius: 5px;
+            height: 6px;
+            border-radius: 3px;
             overflow: hidden;
+            margin-bottom: 0.5rem;
         }
         
         progress::-webkit-progress-bar {
-            background-color: #e9ecef;
-            border-radius: 5px;
+            background-color: var(--gray-light);
+            border-radius: 3px;
         }
         
         progress::-webkit-progress-value {
-            background-color: var(--success);
-            border-radius: 5px;
+            background-color: var(--primary);
+            border-radius: 3px;
+        }
+        
+        .upload-status {
+            font-size: 0.8125rem;
+            color: var(--gray);
+        }
+        
+        /* Gallery */
+        .gallery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--dark);
         }
         
         .gallery {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-top: 2rem;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1.25rem;
         }
         
         .thumbnail-card {
             background: white;
-            border-radius: 8px;
+            border-radius: 0.75rem;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
         }
         
         .thumbnail-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .thumbnail-img-container {
+            position: relative;
+            padding-top: 100%; /* 1:1 Aspect Ratio */
+            overflow: hidden;
         }
         
         .thumbnail-img {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
-            height: 200px;
+            height: 100%;
             object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        
+        .thumbnail-card:hover .thumbnail-img {
+            transform: scale(1.03);
         }
         
         .thumbnail-info {
-            padding: 1rem;
+            padding: 0.75rem;
+            border-top: 1px solid var(--gray-light);
         }
         
-        .thumbnail-info h3 {
-            font-size: 1rem;
-            margin-bottom: 0.5rem;
+        .thumbnail-name {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--dark);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            margin-bottom: 0.5rem;
         }
         
         .thumbnail-meta {
             display: flex;
             justify-content: space-between;
-            color: #666;
-            font-size: 0.875rem;
+            align-items: center;
         }
         
         .status {
-            padding: 0.5rem;
-            border-radius: 4px;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
             font-size: 0.75rem;
-            font-weight: bold;
+            font-weight: 600;
             text-transform: uppercase;
         }
         
         .status.uploading {
-            background-color: #fff3bf;
-            color: #e67700;
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
         }
         
         .status.success {
-            background-color: #ebfbee;
-            color: #2b8a3e;
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success);
         }
         
         .status.error {
-            background-color: #ffebe6;
-            color: #c92a2a;
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
         }
         
+        /* Auth Modal */
+        .auth-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+        
+        .auth-container {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .auth-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .auth-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .auth-subtitle {
+            color: var(--gray);
+            font-size: 0.9375rem;
+        }
+        
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--gray-light);
+        }
+        
+        .auth-tab {
+            padding: 0.75rem;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--gray);
+            position: relative;
+            flex: 1;
+            text-align: center;
+        }
+        
+        .auth-tab.active {
+            color: var(--primary);
+        }
+        
+        .auth-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--primary);
+        }
+        
+        .auth-form {
+            display: none;
+        }
+        
+        .auth-form.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--dark);
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--gray-light);
+            border-radius: 0.5rem;
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+        .auth-message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            display: none;
+        }
+        
+        .auth-message.success {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            display: block;
+        }
+        
+        .auth-message.error {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            display: block;
+        }
+        
+        .auth-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.875rem;
+            color: var(--gray);
+        }
+        
+        .auth-link {
+            color: var(--primary);
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .filter-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .filter-select {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--gray-light);
+            font-size: 0.9375rem;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        /* Responsive */
         @media (max-width: 768px) {
-            .gallery {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            .container {
+                padding: 1rem;
             }
             
-            .dropzone {
+            .gallery {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            }
+            
+            .upload-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            
+            .btn-group {
+                width: 100%;
+            }
+            
+            .btn {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .auth-container {
                 padding: 1.5rem;
+                margin: 1rem;
+            }
+            
+            .gallery {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 1rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="user-info" id="user-info" style="display: none;">
+        <div class="user-avatar" id="user-avatar"></div>
+        <button class="logout-btn" id="logout-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Logout
+        </button>
+    </div>
+
+    <div class="container" id="app-container" style="display: none;">
         <header>
-            <h1>Image Upload Portal</h1>
-            <p>Upload your images and view generated thumbnails</p>
+            <h1 class="app-title">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                    <line x1="4" y1="22" x2="4" y2="15"></line>
+                </svg>
+                Photo Cloud
+            </h1>
+            <div id="user-info-container"></div>
         </header>
         
         <section class="upload-section">
-            <div id="dropzone" class="dropzone">
-                <p>Drag & drop your images here or click to browse</p>
-                <input type="file" id="file-input" accept="image/*" multiple style="display: none;">
-                <button class="btn" id="select-btn">Select Files</button>
+            <div class="upload-header">
+                <h2 class="upload-title">Upload Photos</h2>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" id="select-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        Select
+                    </button>
+                    <button class="btn" id="upload-btn" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        Upload
+                    </button>
+                </div>
             </div>
             
-            <button class="btn" id="upload-btn" disabled>Upload Files</button>
+            <div id="dropzone" class="dropzone">
+                <div class="dropzone-content">
+                    <svg class="dropzone-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"></path>
+                        <line x1="16" y1="5" x2="22" y2="5"></line>
+                        <line x1="19" y1="2" x2="19" y2="8"></line>
+                        <circle cx="9" cy="9" r="2"></circle>
+                        <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+                    </svg>
+                    <p class="dropzone-text">Drag & drop photos here or click to browse</p>
+                </div>
+                <input type="file" id="file-input" accept="image/*" multiple class="file-input">
+            </div>
             
             <div class="progress-container" id="progress-container">
-                <p>Uploading: <span id="current-file">No file</span></p>
+                <div class="progress-header">
+                    <span class="current-file" id="current-file">No file selected</span>
+                    <span class="progress-percent" id="progress-percent">0%</span>
+                </div>
                 <progress id="upload-progress" value="0" max="100"></progress>
-                <p id="upload-status">Ready to upload</p>
+                <p class="upload-status" id="upload-status">Ready to upload</p>
             </div>
         </section>
         
-        <section class="gallery" id="gallery">
-            <!-- Thumbnails will appear here -->
+        <section class="gallery-section">
+            <div class="gallery-header">
+                <h2 class="section-title">Your Photos</h2>
+                <div class="filter-controls">
+                    <select id="filter-select" class="filter-select">
+                        <option value="all">All Images</option>
+                        <option value="mine">My Images</option>
+                    </select>
+                </div>
+            </div>
+            <div class="gallery" id="gallery">
+                <!-- Thumbnails will appear here -->
+            </div>
         </section>
     </div>
 
+    <!-- Auth Modal -->
+    <div class="auth-modal" id="auth-modal">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h2 class="auth-title">Welcome to Photo Cloud</h2>
+                <p class="auth-subtitle">Sign in or create an account to upload photos</p>
+            </div>
+            
+            <div class="auth-tabs">
+                <div class="auth-tab active" data-tab="signin">Sign In</div>
+                <div class="auth-tab" data-tab="signup">Sign Up</div>
+                <div class="auth-tab" data-tab="verify">Verify</div>
+            </div>
+            
+            <div class="auth-form active" id="signin-form">
+                <div class="form-group">
+                    <label class="form-label" for="signin-email">Email</label>
+                    <input type="text" id="signin-email" class="form-input" placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="signin-password">Password</label>
+                    <input type="password" id="signin-password" class="form-input" placeholder="Enter your password">
+                </div>
+                <button class="btn" id="signin-btn">Sign In</button>
+                <div class="auth-message" id="signin-message"></div>
+                <div class="auth-footer">
+                    Don't have an account? <span class="auth-link" data-tab="signup">Sign up</span>
+                </div>
+            </div>
+            
+            <div class="auth-form" id="signup-form">
+                <div class="form-group">
+                    <label class="form-label" for="signup-email">Email</label>
+                    <input type="text" id="signup-email" class="form-input" placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="signup-password">Password</label>
+                    <input type="password" id="signup-password" class="form-input" placeholder="Create a password">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="signup-confirm-password">Confirm Password</label>
+                    <input type="password" id="signup-confirm-password" class="form-input" placeholder="Confirm your password">
+                </div>
+                <button class="btn" id="signup-btn">Create Account</button>
+                <div class="auth-message" id="signup-message"></div>
+                <div class="auth-footer">
+                    Already have an account? <span class="auth-link" data-tab="signin">Sign in</span>
+                </div>
+            </div>
+            
+            <div class="auth-form" id="verify-form">
+                <div class="form-group">
+                    <label class="form-label" for="verify-email">Email</label>
+                    <input type="text" id="verify-email" class="form-input" placeholder="Your email" disabled>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="verify-code">Verification Code</label>
+                    <input type="text" id="verify-code" class="form-input" placeholder="Enter verification code">
+                </div>
+                <button class="btn" id="verify-btn">Verify Account</button>
+                <div class="auth-message" id="verify-message"></div>
+                <div class="auth-footer">
+                    Didn't receive a code? <span class="auth-link" id="resend-code">Resend</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Configuration - Update these with your actual endpoints
-        const config = {
-            apiGatewayUrl: 'https://dkz9b1xqf0.execute-api.eu-west-1.amazonaws.com/prod',
-            presignedUrlEndpoint: ' https://wu8st6xsu5.execute-api.eu-west-1.amazonaws.com/prod/generate-url'
+        // AWS Cognito Configuration
+        const cognitoConfig = {
+            UserPoolId: 'eu-west-1_HkEC6xpgV',
+            ClientId: 'cn83s5vfslmjbibteoq4kfc2b',
+            Region: 'eu-west-1'
         };
 
+        // S3 App Configuration
+        const config = {
+            apiGatewayUrl: 'https://dkz9b1xqf0.execute-api.eu-west-1.amazonaws.com/prod/images',
+            presignedUrlEndpoint: 'https://wu8st6xsu5.execute-api.eu-west-1.amazonaws.com/prod/generate-url',
+            listThumbnailsEndpoint: 'https://dkz9b1xqf0.execute-api.eu-west-1.amazonaws.com/prod/thumbnails',
+            userThumbnailsEndpoint: 'https://wu8st6xsu5.execute-api.eu-west-1.amazonaws.com/prod/user_thumbnails'
+        };
+
+        // Initialize AWS and Cognito
+        AWS.config.update({
+            region: cognitoConfig.Region
+        });
+
+        const userPool = new AmazonCognitoIdentity.CognitoUserPool({
+            UserPoolId: cognitoConfig.UserPoolId,
+            ClientId: cognitoConfig.ClientId
+        });
+        // Add this near the top with other DOM elements
+        const filterSelect = document.getElementById('filter-select');
+
+        // Add this event listener with other event listeners
+        filterSelect.addEventListener('change', async () => {
+            console.log('Filter changed:', filterSelect.value);
+            if (currentUser) {
+                currentUser.getSession(async (err, session) => {
+                    if (err) {
+                        console.error('Error getting session:', err);
+                        return;
+                    }
+                    await loadThumbnails(session.getIdToken().getJwtToken());
+                });
+            }
+        });
+
+        // Modify the loadThumbnails function to accept filter
+        async function loadThumbnails(idToken) {
+            try {
+                const filter = filterSelect.value;
+                let endpoint;
+                if (filter === 'mine') {
+                    endpoint = config.userThumbnailsEndpoint; // Use user-specific endpoint
+                } else {
+                    endpoint = config.listThumbnailsEndpoint; // Use all images endpoint
+                }
+
+                const response = await axios.get(endpoint, {
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    mode: 'cors',
+                });
+                
+                const thumbnails = response.data.thumbnails || [];
+                console.log('Thumbnails loaded:', thumbnails);
+                renderThumbnails(thumbnails);
+            } catch (error) {
+                console.error('Error loading thumbnails:', error);
+                showToast('Failed to load thumbnails', 'error');
+            }
+}
         // DOM Elements
         const fileInput = document.getElementById('file-input');
         const selectBtn = document.getElementById('select-btn');
@@ -235,34 +796,394 @@
         const progressContainer = document.getElementById('progress-container');
         const progressBar = document.getElementById('upload-progress');
         const currentFileEl = document.getElementById('current-file');
+        const progressPercentEl = document.getElementById('progress-percent');
         const uploadStatusEl = document.getElementById('upload-status');
         const gallery = document.getElementById('gallery');
+        const appContainer = document.getElementById('app-container');
+        const authModal = document.getElementById('auth-modal');
+        const signinForm = document.getElementById('signin-form');
+        const signupForm = document.getElementById('signup-form');
+        const verifyForm = document.getElementById('verify-form');
+        const signinBtn = document.getElementById('signin-btn');
+        const signupBtn = document.getElementById('signup-btn');
+        const verifyBtn = document.getElementById('verify-btn');
+        const resendCodeBtn = document.getElementById('resend-code');
+        const signinEmail = document.getElementById('signin-email');
+        const signinPassword = document.getElementById('signin-password');
+        const signupEmail = document.getElementById('signup-email');
+        const signupPassword = document.getElementById('signup-password');
+        const signupConfirmPassword = document.getElementById('signup-confirm-password');
+        const verifyEmail = document.getElementById('verify-email');
+        const verifyCode = document.getElementById('verify-code');
+        const signinMessage = document.getElementById('signin-message');
+        const signupMessage = document.getElementById('signup-message');
+        const verifyMessage = document.getElementById('verify-message');
+        const tabs = document.querySelectorAll('.auth-tab');
+        const authLinks = document.querySelectorAll('.auth-link');
+        const userInfo = document.getElementById('user-info');
+        const userAvatar = document.getElementById('user-avatar');
+        const logoutBtn = document.getElementById('logout-btn');
 
         // State
         let filesToUpload = [];
         let uploadInProgress = false;
+        let currentUser = null;
+        let signupEmailValue = '';
 
-        // Event Listeners
+        // Initialize the app
+        initApp();
+
+        // Tab switching
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                switchTab(tabName);
+            });
+        });
+
+        // Auth link switching
+        authLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                const tabName = link.dataset.tab;
+                switchTab(tabName);
+            });
+        });
+
+        // Sign In
+        signinBtn.addEventListener('click', () => {
+            const email = signinEmail.value.trim();
+            const password = signinPassword.value.trim();
+            
+            if (!email || !password) {
+                showAuthMessage(signinMessage, 'Please fill in all fields', 'error');
+                return;
+            }
+            
+            authenticateUser(email, password);
+        });
+
+        // Sign Up
+        signupBtn.addEventListener('click', () => {
+            const email = signupEmail.value.trim();
+            const password = signupPassword.value.trim();
+            const confirmPassword = signupConfirmPassword.value.trim();
+            
+            if (!email || !password || !confirmPassword) {
+                showAuthMessage(signupMessage, 'Please fill in all fields', 'error');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showAuthMessage(signupMessage, 'Passwords do not match', 'error');
+                return;
+            }
+            
+            if (password.length < 8) {
+                showAuthMessage(signupMessage, 'Password must be at least 8 characters', 'error');
+                return;
+            }
+            
+            signupEmailValue = email;
+            signUpUser(email, password);
+        });
+
+        // Verify Account
+        verifyBtn.addEventListener('click', () => {
+            const code = verifyCode.value.trim();
+            
+            if (!code) {
+                showAuthMessage(verifyMessage, 'Please enter the verification code', 'error');
+                return;
+            }
+            
+            verifyUser(signupEmailValue, code);
+        });
+
+        // Resend Verification Code
+        resendCodeBtn.addEventListener('click', () => {
+            if (!signupEmailValue) return;
+            
+            const userData = {
+                Username: signupEmailValue,
+                Pool: userPool
+            };
+            
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+            
+            cognitoUser.resendConfirmationCode((err, result) => {
+                if (err) {
+                    showAuthMessage(verifyMessage, err.message || 'Failed to resend code', 'error');
+                    return;
+                }
+                
+                showAuthMessage(verifyMessage, 'Verification code resent successfully', 'success');
+            });
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', () => {
+            if (currentUser) {
+                currentUser.signOut();
+            }
+            resetAuthState();
+            showAuthModal();
+        });
+
+        // File Upload Event Listeners
         selectBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', handleFileSelect);
         uploadBtn.addEventListener('click', startUpload);
         
         // Drag and Drop Events
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropzone.classList.add('active');
+        ['dragover', 'dragenter'].forEach(event => {
+            dropzone.addEventListener(event, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('active');
+            });
         });
         
-        dropzone.addEventListener('dragleave', () => {
-            dropzone.classList.remove('active');
+        ['dragleave', 'dragend', 'drop'].forEach(event => {
+            dropzone.addEventListener(event, () => {
+                dropzone.classList.remove('active');
+            });
         });
         
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropzone.classList.remove('active');
-            fileInput.files = e.dataTransfer.files;
-            handleFileSelect({ target: fileInput });
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect({ target: fileInput });
+            }
         });
+
+        // Switch auth tab
+        function switchTab(tabName) {
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelector(`.auth-tab[data-tab="${tabName}"]`).classList.add('active');
+            
+            signinForm.classList.remove('active');
+            signupForm.classList.remove('active');
+            verifyForm.classList.remove('active');
+            
+            if (tabName === 'signin') {
+                signinForm.classList.add('active');
+            } else if (tabName === 'signup') {
+                signupForm.classList.add('active');
+            } else if (tabName === 'verify') {
+                verifyForm.classList.add('active');
+                verifyEmail.value = signupEmailValue;
+            }
+        }
+
+        // Initialize the app
+        async function initApp() {
+            currentUser = userPool.getCurrentUser();
+            
+            if (currentUser) {
+                currentUser.getSession((err, session) => {
+                    if (err) {
+                        console.error('Error getting session:', err);
+                        resetAuthState();
+                        showAuthModal();
+                    } else {
+                        hideAuthModal();
+                        showApp();
+                        updateUserInfo(currentUser.username);
+                        loadThumbnails(session.getIdToken().getJwtToken());
+                    }
+                });
+            } else {
+                showAuthModal();
+            }
+        }
+
+        // Authenticate user
+        function authenticateUser(email, password) {
+            const authenticationData = {
+                Username: email,
+                Password: password
+            };
+            
+            const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails(authenticationData);
+            
+            const userData = {
+                Username: email,
+                Pool: userPool
+            };
+            
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+            
+            cognitoUser.authenticateUser(authenticationDetails, {
+                onSuccess: async (result) => {
+                    currentUser = cognitoUser;
+                    hideAuthModal();
+                    showApp();
+                    updateUserInfo(email);
+                    await loadThumbnails(result.getIdToken().getJwtToken());
+                },
+                onFailure: (err) => {
+                    showAuthMessage(signinMessage, err.message || 'Authentication failed', 'error');
+                },
+                newPasswordRequired: () => {
+                    showAuthMessage(signinMessage, 'Please set a new password', 'error');
+                }
+            });
+        }
+
+        // Sign up new user
+        function signUpUser(email, password) {
+            const attributeList = [
+                new AmazonCognitoIdentity.CognitoUserAttribute({
+                    Name: 'email',
+                    Value: email
+                })
+            ];
+            
+            userPool.signUp(email, password, attributeList, null, (err, result) => {
+                if (err) {
+                    showAuthMessage(signupMessage, err.message || 'Sign up failed', 'error');
+                    return;
+                }
+                
+                showAuthMessage(signupMessage, 'Sign up successful! Please check your email for the verification code.', 'success');
+                switchTab('verify');
+            });
+        }
+
+        // Verify user
+        function verifyUser(email, code) {
+            const userData = {
+                Username: email,
+                Pool: userPool
+            };
+            
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+            
+            cognitoUser.confirmRegistration(code, true, (err, result) => {
+                if (err) {
+                    showAuthMessage(verifyMessage, err.message || 'Verification failed', 'error');
+                    return;
+                }
+                
+                showAuthMessage(verifyMessage, 'Verification successful! Please sign in.', 'success');
+                switchTab('signin');
+                signinEmail.value = email;
+            });
+        }
+
+        // Load all thumbnails from S3
+        // async function loadThumbnails(idToken) {
+        //                     // console.log('IdToken:', idToken);
+
+        //     try {
+        //         const response = await axios.get(config.listThumbnailsEndpoint, {
+        //             headers: {
+        //                 'Authorization': `Bearer ${idToken}`
+        //             },
+        //             mode : 'cors',
+        //         });
+                
+        //         const thumbnails = response.data.thumbnails || [];
+        //         // console.log('Thumbnails loaded:', thumbnails);
+        //         renderThumbnails(thumbnails);
+        //     } catch (error) {
+        //         console.error('Error loading thumbnails:', error);
+        //         showToast('Failed to load thumbnails', 'error');
+        //     }
+        // }
+
+        // Render thumbnails in gallery
+        function renderThumbnails(thumbnails) {
+            console.log('Rendering thumbnails:', thumbnails);
+            gallery.innerHTML = '';
+            
+            if (thumbnails.length === 0) {
+                gallery.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--gray);">No photos uploaded yet</p>';
+                return;
+            }
+            
+            thumbnails.forEach((thumbnail, index) => {
+                const cardId = `thumb-${Date.now()}-${index}`;
+                const card = document.createElement('div');
+                card.className = 'thumbnail-card';
+                card.id = cardId;
+                
+                card.innerHTML = `
+                    <div class="thumbnail-img-container">
+                        <img src="${config.apiGatewayUrl}/${thumbnail.name}" alt="${thumbnail.name}" class="thumbnail-img" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM5NGEzYjgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIzIiB5PSIzIiB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHJ4PSIyIiByeT0iMiI+PC9yZWN0PjxjaXJjbGUgY3g9IjguNSIgY3k9IjguNSIgcj0iMi41Ij48L2NpcmNsZT48cG9seWxpbmUgcG9pbnRzPSIyMSAxNSAxNiAxMCA1IDIxIj48L3BvbHlsaW5lPjwvc3ZnPg=='">
+                    </div>
+                    <div class="thumbnail-info">
+                        <p class="thumbnail-name">${thumbnail.name}</p>
+                        <div class="thumbnail-meta">
+                            <span class="status success">Uploaded</span>
+                        </div>
+                    </div>
+                `;
+                
+                gallery.appendChild(card);
+            });
+        }
+
+        // Reset authentication state
+        function resetAuthState() {
+            currentUser = null;
+            signupEmailValue = '';
+            hideApp();
+            clearAuthForms();
+            gallery.innerHTML = '';
+        }
+
+        // Clear auth forms
+        function clearAuthForms() {
+            signinEmail.value = '';
+            signinPassword.value = '';
+            signupEmail.value = '';
+            signupPassword.value = '';
+            signupConfirmPassword.value = '';
+            verifyEmail.value = '';
+            verifyCode.value = '';
+            signinMessage.style.display = 'none';
+            signupMessage.style.display = 'none';
+            verifyMessage.style.display = 'none';
+        }
+
+        // Show auth modal
+        function showAuthModal() {
+            authModal.style.display = 'flex';
+        }
+
+        // Hide auth modal
+        function hideAuthModal() {
+            authModal.style.display = 'none';
+        }
+
+        // Show app content
+        function showApp() {
+            appContainer.style.display = 'block';
+        }
+
+        // Hide app content
+        function hideApp() {
+            appContainer.style.display = 'none';
+        }
+
+        // Update user info display
+        function updateUserInfo(username) {
+            userInfo.style.display = 'flex';
+            userAvatar.textContent = username.charAt(0).toUpperCase();
+            document.getElementById('user-info-container').appendChild(userInfo);
+        }
+
+        // Show auth message
+        function showAuthMessage(element, message, type) {
+            element.textContent = message;
+            element.className = `auth-message ${type}`;
+            element.style.display = 'block';
+            
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
 
         // File Selection Handler
         function handleFileSelect(event) {
@@ -285,45 +1206,48 @@
             progressContainer.style.display = 'block';
             
             try {
+                const session = await getCurrentSession();
+                if (!session) {
+                    throw new Error('Not authenticated');
+                }
+                
+                const idToken = session.getIdToken().getJwtToken();
+                
                 for (let i = 0; i < filesToUpload.length; i++) {
                     const file = filesToUpload[i];
                     currentFileEl.textContent = file.name;
                     progressBar.value = 0;
+                    progressPercentEl.textContent = '0%';
                     uploadStatusEl.textContent = 'Preparing upload...';
                     
-                    // Create card in gallery
                     const cardId = `card-${Date.now()}-${i}`;
                     createThumbnailCard(cardId, file.name, 'uploading');
                     
                     try {
-                        // 1. Get pre-signed URL
                         uploadStatusEl.textContent = 'Requesting upload URL...';
-                        const { presignedUrl, fileName } = await getPresignedUrl(file);
+                        const { presignedUrl, fileName } = await getPresignedUrl(file, idToken);
                         
-                        // 2. Upload file to S3
                         uploadStatusEl.textContent = 'Uploading to S3...';
                         await uploadToS3(presignedUrl, file, cardId);
                         
-                        // 3. Update UI with thumbnail
-                        uploadStatusEl.textContent = 'Generating thumbnail...';
+                        uploadStatusEl.textContent = 'Processing image...';
                         updateThumbnailCard(cardId, 'success');
-                        setTimeout(() => {
-                            displayThumbnail(cardId, fileName);
-                        }, 3000);
-                        
                         showToast(`Uploaded ${file.name} successfully`, 'success');
+                        window.location.reload(true);
                     } catch (error) {
                         console.error(`Error uploading ${file.name}:`, error);
                         updateThumbnailCard(cardId, 'error');
                         showToast(`Failed to upload ${file.name}`, 'error');
                     }
                     
-                    // Update progress
-                    progressBar.value = ((i + 1) / filesToUpload.length) * 100;
+                    const percent = Math.round(((i + 1) / filesToUpload.length) * 100);
+                    progressBar.value = percent;
+                    progressPercentEl.textContent = `${percent}%`;
                 }
                 
                 uploadStatusEl.textContent = 'All uploads completed!';
                 showToast('All files uploaded successfully', 'success');
+                await loadThumbnails(idToken);
             } catch (error) {
                 console.error('Upload process failed:', error);
                 showToast('Upload process failed', 'error');
@@ -338,11 +1262,73 @@
             }
         }
 
+        // Create thumbnail card for upload
+        function createThumbnailCard(id, filename, status) {
+            const card = document.createElement('div');
+            card.className = 'thumbnail-card';
+            card.id = id;
+            
+            card.innerHTML = `
+                <div class="thumbnail-img-container">
+                    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8fafc;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                    </div>
+                </div>
+                <div class="thumbnail-info">
+                    <p class="thumbnail-name">${filename}</p>
+                    <div class="thumbnail-meta">
+                        <span class="status ${status}">${status === 'uploading' ? 'Uploading...' : 'Uploaded'}</span>
+                    </div>
+                </div>
+            `;
+            
+            gallery.prepend(card);
+            return card;
+        }
+
+        // Update thumbnail card status
+        function updateThumbnailCard(id, status) {
+            const card = document.getElementById(id);
+            if (!card) return;
+            
+            const statusEl = card.querySelector('.status');
+            if (statusEl) {
+                statusEl.className = `status ${status}`;
+                statusEl.textContent = status === 'uploading' ? 'Uploading...' : 'Uploaded';
+            }
+        }
+
+        // Get current Cognito session
+        function getCurrentSession() {
+            return new Promise((resolve, reject) => {
+                if (!currentUser) {
+                    reject(new Error('No current user'));
+                    return;
+                }
+                
+                currentUser.getSession((err, session) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(session);
+                    }
+                });
+            });
+        }
+
         // API Functions
-        async function getPresignedUrl(file) {
+        async function getPresignedUrl(file, idToken) {
             const response = await axios.post(config.presignedUrlEndpoint, {
                 fileName: file.name,
                 fileType: file.type
+            }, {
+                headers: {
+                    'Authorization': idToken
+                }
             });
             
             return response.data;
@@ -356,14 +1342,8 @@
                     if (e.lengthComputable) {
                         const percent = Math.round((e.loaded / e.total) * 100);
                         progressBar.value = percent;
+                        progressPercentEl.textContent = `${percent}%`;
                         uploadStatusEl.textContent = `Uploading: ${percent}%`;
-                        
-                        // Update card progress
-                        const card = document.getElementById(cardId);
-                        if (card) {
-                            const progress = card.querySelector('.progress');
-                            if (progress) progress.value = percent;
-                        }
                     }
                 });
                 
@@ -384,58 +1364,59 @@
             });
         }
 
-        // UI Functions
-        function createThumbnailCard(id, filename, status) {
-            const card = document.createElement('div');
-            card.className = 'thumbnail-card';
-            card.id = id;
-            
-            card.innerHTML = `
-                <div class="thumbnail-img-container">
-                    <img src="placeholder.png" alt="Loading..." class="thumbnail-img">
-                </div>
-                <div class="thumbnail-info">
-                    <h3 title="${filename}">${filename}</h3>
-                    <div class="thumbnail-meta">
-                        <span class="status ${status}">${status}</span>
-                        <progress class="progress" value="0" max="100" style="display: none;"></progress>
-                    </div>
-                </div>
-            `;
-            
-            gallery.prepend(card);
-            return card;
-        }
-
-        function updateThumbnailCard(id, status) {
-            const card = document.getElementById(id);
-            if (!card) return;
-            
-            const statusEl = card.querySelector('.status');
-            if (statusEl) {
-                statusEl.className = `status ${status}`;
-                statusEl.textContent = status;
-            }
-        }
-
-        function displayThumbnail(cardId, filename) {
-            const card = document.getElementById(cardId);
-            if (!card) return;
-            
-            const img = card.querySelector('.thumbnail-img');
-            if (img) {
-                img.src = `${config.apiGatewayUrl}/images/thumb-${filename}`;
-                img.onerror = () => {
-                    img.src = 'placeholder.png';
-                    updateThumbnailCard(cardId, 'error');
-                };
-            }
-        }
-
+        // Show toast notification
         function showToast(message, type) {
-            // In a real app, you'd implement a proper toast notification system
-            console.log(`${type.toUpperCase()}: ${message}`);
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
+
+        // Add toast styles dynamically
+        const toastStyles = document.createElement('style');
+        toastStyles.textContent = `
+            .toast {
+                position: fixed;
+                bottom: 1.5rem;
+                right: 1.5rem;
+                padding: 0.75rem 1.25rem;
+                border-radius: 0.5rem;
+                color: white;
+                font-size: 0.875rem;
+                font-weight: 500;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+            }
+            
+            .toast-success {
+                background-color: var(--success);
+            }
+            
+            .toast-error {
+                background-color: var(--danger);
+            }
+            
+            .fade-out {
+                animation: fadeOut 0.3s ease;
+            }
+            
+            @keyframes slideIn {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+        `;
+        document.head.appendChild(toastStyles);
     </script>
 </body>
 </html>

@@ -1,1 +1,9 @@
 career_invite.html
+.terraform
+# Local .terraform directory
+.terraform.lock.hcl
+# Local .terraform directory
+*.terraform-version
+*.tfstate
+*.tfstate.*
+.terraform.tfvars

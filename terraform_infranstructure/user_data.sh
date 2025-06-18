@@ -25,3 +25,14 @@ cp cognito_config.js index.html /var/www/html/
 # restart nginx to apply changes
 systemctl restart nginx
 
+
+
+server {
+    listen 80;
+    server_name 34.244.223.65 34.244.223.65.sslip.io;
+
+    location / {
+        root /var/www/html;
+        index index.html;
+    }
+}

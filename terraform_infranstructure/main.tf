@@ -110,5 +110,5 @@ egress {
 
 
 output "instance_ip" {
-  value = aws_instance.photo_share_instance.public_ip
+  value = "https://${aws_instance.photo_share_instance.public_ip}.sslip.io"
 }

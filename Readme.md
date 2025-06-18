@@ -6,6 +6,8 @@ Photo Cloud is a serverless web-based photo-sharing application that enables use
 ## Architecture
 
 ![Photo Cloud Demo](media/photo_cloud.gif)
+
+
 ### Components
 The application is built using a serverless architecture on AWS, with the following components:
 

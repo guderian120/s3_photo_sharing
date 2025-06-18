@@ -1,38 +1,51 @@
-#!bin/bash
+#!/bin/bash
 
 set -e
 exec > >(tee -a /var/log/user-data.log) 2>&1
 
-# Update the system
+# === Variables ===
+PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
+DOMAIN="$PUBLIC_IP.sslip.io"
+REPO_URL="https://github.com/guderian120/s3_photo_sharing"
+
+echo "Public IP: $PUBLIC_IP"
+echo "Domain: $DOMAIN"
+
+# === Update system and install dependencies ===
 apt-get update -y
-# Install necessary packages
-apt-get install -y nginx
+apt-get install -y nginx git python3-certbot-nginx
 
-# install python certbot for SSL
-apt-get install -y python3-certbot-nginx
-
-# Start and enable Nginx
+# === Start and enable Nginx ===
 systemctl start nginx
 systemctl enable nginx
-#pull the code from source repo
-git clone https://github.com/guderian120/s3_photo_sharing
-cd s3_photo_sharing
 
-# copy static files to nginx directory
+# === Pull static files from repo ===
+cd /tmp
+git clone $REPO_URL
+cd s3_photo_sharing
 cp cognito_config.js index.html /var/www/html/
 
-
-# restart nginx to apply changes
-systemctl restart nginx
-
-
-
+# === Configure Nginx server block ===
+cat > /etc/nginx/sites-available/default <<EOF
 server {
     listen 80;
-    server_name 34.244.223.65 34.244.223.65.sslip.io;
+    server_name $DOMAIN;
 
     location / {
         root /var/www/html;
         index index.html;
     }
 }
+EOF
+
+# === Restart Nginx ===
+nginx -t && systemctl restart nginx
+
+# === Wait briefly to ensure nginx is ready ===
+sleep 5
+
+# === Request SSL certificate with Certbot ===
+certbot --nginx -n --agree-tos --redirect --email realamponsah10@yahoo.com -d $DOMAIN
+
+# === Done ===
+echo "SSL setup complete for $DOMAIN"

@@ -1,0 +1,10 @@
+cli_infranstructure/*
+cli_infranstructure
+lambda_functions/*
+lambda_functions
+media/*
+media
+terraform/*
+terraform_infrastructure
+terraform_infrastructure/*
+Readme.md
